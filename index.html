@@ -450,49 +450,149 @@ Hasil:
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const r = lastResult, inp = lastInputs;
-    const width = 180;
-    let y = 20;
+    const W = 210, M = 16, CW = W - 2 * M, BOTTOM = 270;
+    const BRAND = [37, 84, 133], INK = [28, 33, 43], MUTED = [107, 114, 128], WHITE = [255, 255, 255];
+    const LINE = [221, 226, 234], SOFT = [243, 246, 251], WARM = [255, 246, 222];
+    let y = 0;
 
-    const write = (text, size = 11, bold = false) => {
-      doc.setFont("helvetica", bold ? "bold" : "normal");
+    const font = (size, style = "normal", color = INK) => {
+      doc.setFont("helvetica", style);
       doc.setFontSize(size);
-      const lines = doc.splitTextToSize(text, width);
-      lines.forEach((line) => {
-        if (y > 280) { doc.addPage(); y = 20; }
-        doc.text(line, 15, y);
-        y += size * 0.5 + 2;
+      doc.setTextColor(color[0], color[1], color[2]);
+    };
+    const ensure = (h) => {
+      if (y + h > BOTTOM) { doc.addPage(); y = 20; }
+    };
+    const section = (title) => {
+      ensure(18);
+      y += 4;
+      font(11, "bold", BRAND);
+      doc.text(title.toUpperCase(), M, y);
+      y += 2.5;
+      doc.setDrawColor(BRAND[0], BRAND[1], BRAND[2]);
+      doc.setLineWidth(0.5);
+      doc.line(M, y, M + CW, y);
+      y += 6;
+    };
+    const row = (label, value) => {
+      ensure(8);
+      font(10, "normal", MUTED);
+      doc.text(label, M + 3, y);
+      font(10, "bold", INK);
+      doc.text(value, M + CW - 3, y, { align: "right" });
+      doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
+      doc.setLineWidth(0.2);
+      doc.line(M + 3, y + 2.2, M + CW - 3, y + 2.2);
+      y += 7.5;
+    };
+    const card = (title, items) => {
+      const h = 30;
+      ensure(h + 5);
+      doc.setFillColor(SOFT[0], SOFT[1], SOFT[2]);
+      doc.roundedRect(M, y, CW, h, 3, 3, "F");
+      font(10, "bold", BRAND);
+      doc.text(title, M + 5, y + 7);
+      const colW = (CW - 10) / items.length;
+      items.forEach((it, i) => {
+        const x = M + 5 + i * colW;
+        font(8, "normal", MUTED);
+        doc.text(it.label, x, y + 16);
+        font(it.big ? 14 : 11, "bold", INK);
+        doc.text(it.value, x, y + 24);
       });
+      y += h + 4;
     };
 
-    write("Kalkulator Harga dan Margin Marketplace", 16, true);
-    y += 2;
-    write("Produk: " + (inp.produk || "tidak disebutkan"));
-    write("Marketplace: " + inp.marketplace);
-    write("Tarif dicek pada: " + (inp.tanggalTarif || "tidak diisi"));
-    y += 3;
-    write("Data yang dimasukkan", 13, true);
-    write("Komisi termasuk biaya layanan: " + r.fee.toFixed(2) + "%");
-    write("Biaya tetap per transaksi: " + rupiah(r.fixed));
-    write("HPP: " + rupiah(r.hpp));
-    write("Biaya kemasan: " + rupiah(r.kemasan));
-    write("Ongkir per paket: " + rupiah(r.ongkir));
-    write("Target margin: " + r.m.toFixed(2) + "%");
-    write("Diskon promo: " + r.d.toFixed(2) + "%");
-    y += 3;
-    write("Hasil", 13, true);
-    write("Normal: harga bayar minimum " + rupiah(r.A.pay) + ", keuntungan " + rupiah(r.A.profit) + " per unit, margin " + r.A.margin.toFixed(1) + "%.");
+    // Header
+    doc.setFillColor(BRAND[0], BRAND[1], BRAND[2]);
+    doc.rect(0, 0, W, 44, "F");
+    font(17, "bold", WHITE);
+    doc.text("Kalkulator Harga dan Margin Marketplace", M, 19);
+    font(10, "normal", [214, 226, 242]);
+    doc.text("Produk: " + (inp.produk || "tidak disebutkan"), M, 29);
+    doc.text(
+      "Marketplace: " + inp.marketplace + "   |   Tarif dicek pada: " + (inp.tanggalTarif || "tidak diisi"),
+      M, 36
+    );
+    y = 56;
+
+    // Input
+    section("Data yang dimasukkan");
+    row("Komisi termasuk biaya layanan", r.fee.toFixed(2) + "%");
+    row("Biaya tetap per transaksi", rupiah(r.fixed));
+    row("HPP (harga pokok produk)", rupiah(r.hpp));
+    row("Biaya kemasan", rupiah(r.kemasan));
+    row("Ongkir per paket", rupiah(r.ongkir));
+    row("Target margin", r.m.toFixed(2) + "%");
+    row("Diskon promo", r.d.toFixed(2) + "%");
+
+    // Hasil
+    section("Hasil");
+    card("Skenario normal", [
+      { label: "Harga bayar minimum", value: rupiah(r.A.pay), big: true },
+      { label: "Keuntungan per unit", value: rupiah(r.A.profit) },
+      { label: "Margin", value: r.A.margin.toFixed(1) + "%" },
+    ]);
     if (r.d > 0) {
-      write("Promo, ongkir dibebankan ke pembeli: harga coret minimum " + rupiah(r.B.list) + ", harga bayar " + rupiah(r.B.pay) + ".");
-      write("Promo, ongkir ditanggung penjual: harga coret minimum " + rupiah(r.C.list) + ", harga bayar " + rupiah(r.C.pay) + ", keuntungan " + rupiah(r.C.profit) + ", margin " + r.C.margin.toFixed(1) + "%.");
+      card("Promo, ongkir dibebankan ke pembeli", [
+        { label: "Harga coret minimum", value: rupiah(r.B.list), big: true },
+        { label: "Harga bayar", value: rupiah(r.B.pay) },
+      ]);
+      card("Promo, ongkir ditanggung penjual", [
+        { label: "Harga coret minimum", value: rupiah(r.C.list), big: true },
+        { label: "Harga bayar", value: rupiah(r.C.pay) },
+        { label: "Keuntungan", value: rupiah(r.C.profit) },
+        { label: "Margin", value: r.C.margin.toFixed(1) + "%" },
+      ]);
     }
-    const penjelasan = $("hasil-ai").classList.contains("hidden") ? "" : $("hasil-ai").textContent;
+
+    // Penjelasan AI
+    const penjelasan = $("hasil-ai").classList.contains("hidden") ? "" : $("hasil-ai").textContent.trim();
     if (penjelasan) {
-      y += 3;
-      write("Penjelasan", 13, true);
-      write(penjelasan);
+      section("Penjelasan");
+      font(10, "normal", INK);
+      const lines = doc.splitTextToSize(penjelasan, CW - 10);
+      const h = lines.length * 5 + 8;
+      if (h < BOTTOM - 40) {
+        ensure(h);
+        doc.setFillColor(SOFT[0], SOFT[1], SOFT[2]);
+        doc.roundedRect(M, y, CW, h, 3, 3, "F");
+        y += 6;
+        lines.forEach((line) => {
+          ensure(5);
+          doc.text(line, M + 5, y);
+          y += 5;
+        });
+        y += 4;
+      } else {
+        lines.forEach((line) => {
+          ensure(5);
+          doc.text(line, M, y);
+          y += 5;
+        });
+      }
     }
-    y += 3;
-    write("Hasil ini adalah estimasi, bukan saran keuangan. Tarif marketplace perlu dicek ulang di halaman resmi.", 9);
+
+    // Catatan
+    ensure(18);
+    y += 4;
+    doc.setFillColor(WARM[0], WARM[1], WARM[2]);
+    doc.roundedRect(M, y, CW, 14, 3, 3, "F");
+    font(9, "normal", INK);
+    doc.text("Hasil ini adalah estimasi, bukan saran keuangan.", M + 5, y + 6);
+    doc.text("Tarif marketplace perlu dicek ulang di halaman resmi sebelum dipakai.", M + 5, y + 11);
+
+    // Footer di setiap halaman
+    const total = doc.getNumberOfPages();
+    for (let i = 1; i <= total; i++) {
+      doc.setPage(i);
+      doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
+      doc.setLineWidth(0.2);
+      doc.line(M, 284, W - M, 284);
+      font(8, "normal", MUTED);
+      doc.text("Kalkulator Harga dan Margin Marketplace", M, 289);
+      doc.text("Halaman " + i + " dari " + total, W - M, 289, { align: "right" });
+    }
 
     const nama = (inp.produk || "hasil").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     doc.save("kalkulator-margin-" + nama + ".pdf");
