@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator Harga dan Margin Marketplace</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --text: #1f1f1d;
+    --muted: #6b6b66;
+    --border: #d9d9d4;
+    --accent: #2f5d8a;
+    --danger: #a32d2d;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  .notice {
+    background: #fff8e1;
+    border: 1px solid #e8d48a;
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  input, select {
+    width: 100%;
+    font: inherit;
+    font-size: 15px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+  }
+  .error { color: var(--danger); font-size: 13px; margin-top: 4px; display: none; }
+  .invalid { border-color: var(--danger); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > .field { flex: 1; min-width: 200px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+  button {
+    font: inherit;
+    font-size: 14px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: wait; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .status { font-size: 13px; color: var(--muted); }
+  .alert {
+    background: #fdeaea;
+    border: 1px solid #e8b4b4;
+    color: var(--danger);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; font-size: 13px; color: var(--muted); }
+  td.num { text-align: right; white-space: nowrap; }
+  .hidden { display: none; }
+  .ai-text { white-space: pre-wrap; font-size: 15px; background: #fbfbfa; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 10px; }
+  .footer { font-size: 12px; color: var(--muted); margin-top: 24px; }
+  @media (max-width: 560px) {
+    table, thead, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; margin-bottom: 10px; }
+    td { border: none; padding: 4px 0; }
+    td.num { text-align: left; }
+    td::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kalkulator Harga dan Margin Marketplace</h1>
+  <p class="notice">
+    Alat ini membantu menghitung harga jual minimum dari data yang Anda isi. Ini bukan saran keuangan. Tarif komisi dan biaya layanan marketplace bisa berubah, jadi cek ulang di halaman resmi marketplace sebelum dipakai. Hitungan mengasumsikan komisi dan biaya layanan dihitung dari harga bayar pembeli. Hasil adalah estimasi.
+  </p>
+
+  <section class="card">
+    <h2>1. Isi data produk</h2>
+    <div class="alert" id="alert-global"></div>
+
+    <div class="row">
+      <div class="field">
+        <label for="produk">Nama produk (opsional)</label>
+        <input id="produk" type="text" maxlength="80">
+      </div>
+      <div class="field">
+        <label for="marketplace">Marketplace</label>
+        <select id="marketplace">
+          <option value="">Pilih marketplace</option>
+          <option>Shopee</option>
+          <option>TikTok Shop</option>
+          <option>Tokopedia</option>
+          <option>Lainnya</option>
+        </select>
+        <div class="error" id="err-marketplace">Pilih salah satu marketplace.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="komisi">Komisi marketplace (%)</label>
+        <input id="komisi" type="number" min="0" max="100" step="0.01">
+        <div class="hint">Isi dari halaman tarif resmi marketplace.</div>
+        <div class="error" id="err-komisi">Isi angka 0 sampai 100.</div>
+      </div>
+      <div class="field">
+        <label for="layanan">Biaya layanan (%)</label>
+        <input id="layanan" type="number" min="0" max="100" step="0.01">
+        <div class="error" id="err-layanan">Isi angka 0 sampai 100.</div>
+      </div>
+      <div class="field">
+        <label for="tetap">Biaya tetap per transaksi (Rp)</label>
+        <input id="tetap" type="number" min="0" step="1">
+        <div class="hint">Kosongkan jika tidak ada.</div>
+        <div class="error" id="err-tetap">Isi angka 0 atau lebih.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="hpp">HPP, harga pokok produk (Rp)</label>
+        <input id="hpp" type="number" min="0" step="1">
+        <div class="error" id="err-hpp">Isi angka 0 atau lebih.</div>
+      </div>
+      <div class="field">
+        <label for="kemasan">Biaya kemasan (Rp)</label>
+        <input id="kemasan" type="number" min="0" step="1">
+        <div class="error" id="err-kemasan">Isi angka 0 atau lebih.</div>
+      </div>
+      <div class="field">
+        <label for="ongkir">Ongkir per paket (Rp)</label>
+        <input id="ongkir" type="number" min="0" step="1">
+        <div class="hint">Dipakai pada skenario ongkir ditanggung penjual.</div>
+        <div class="error" id="err-ongkir">Isi angka 0 atau lebih.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="margin">Target margin (%)</label>
+        <input id="margin" type="number" min="0" max="99" step="0.01">
+        <div class="hint">Persentase keuntungan dari harga bayar pembeli.</div>
+        <div class="error" id="err-margin">Isi angka 0 sampai 99.</div>
+      </div>
+      <div class="field">
+        <label for="diskon">Diskon promo (%)</label>
+        <input id="diskon" type="number" min="0" max="99" step="0.01">
+        <div class="hint">Isi 0 jika tidak ada promo.</div>
+        <div class="error" id="err-diskon">Isi angka 0 sampai 99.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="tanggal-tarif">Tarif dicek pada (opsional)</label>
+      <input id="tanggal-tarif" type="text" placeholder="contoh: 24 November 2026">
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="btn-hitung">Hitung</button>
+      <button id="btn-reset">Kosongkan</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="section-hasil">
+    <h2>2. Hasil perhitungan</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Skenario</th>
+          <th>Harga coret</th>
+          <th>Harga bayar pembeli minimum</th>
+          <th>Keuntungan per unit</th>
+          <th>Margin</th>
+        </tr>
+      </thead>
+      <tbody id="tabel-hasil"></tbody>
+    </table>
+    <p class="hint" id="ringkas" style="margin-top: 12px;"></p>
+  </section>
+
+  <section class="card hidden" id="section-ai">
+    <h2>3. Penjelasan dari AI</h2>
+    <p class="hint" style="margin-top: 0;">AI menjelaskan angka yang sudah dihitung di atas dengan bahasa sederhana. Angka tidak diubah oleh AI.</p>
+    <div class="actions">
+      <button class="primary" id="btn-ai">Buat penjelasan</button>
+      <span class="status" id="status-ai"></span>
+    </div>
+    <div class="ai-text hidden" id="hasil-ai"></div>
+  </section>
+
+  <section class="card hidden" id="section-pdf">
+    <h2>4. Unduh hasil</h2>
+    <div class="actions">
+      <button class="primary" id="btn-pdf">Unduh PDF</button>
+      <span class="status" id="status-pdf"></span>
+    </div>
+  </section>
+
+  <p class="footer">Hasil adalah estimasi, bukan saran keuangan. Data hanya dikirim ke server AI saat Anda menekan tombol penjelasan, dan hanya berisi angka dan nama produk yang Anda isi.</p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // Isi dengan URL proxy AI setelah dipasang (lihat panduan). Jangan isi kunci API di sini.
+  const AI_ENDPOINT = "/api/explain";
+  // Isi jika proxy memakai token aplikasi. Kosongkan jika tidak dipakai.
+  const APP_TOKEN = "";
+
+  const $ = (id) => document.getElementById(id);
+  const rupiah = (n) => "Rp " + Math.round(n).toLocaleString("id-ID");
+  const roundUp100 = (n) => Math.ceil(n / 100) * 100;
+
+  const REQUIRED = ["komisi", "layanan", "hpp", "kemasan", "ongkir", "margin", "diskon"];
+  const OPTIONAL = ["tetap"];
+  const RULES = {
+    komisi: (v) => v >= 0 && v <= 100,
+    layanan: (v) => v >= 0 && v <= 100,
+    tetap: (v) => v >= 0,
+    hpp: (v) => v >= 0,
+    kemasan: (v) => v >= 0,
+    ongkir: (v) => v >= 0,
+    margin: (v) => v >= 0 && v <= 99,
+    diskon: (v) => v >= 0 && v <= 99
+  };
+
+  let lastResult = null;
+  let lastInputs = null;
+
+  function readNum(id) {
+    const raw = $(id).value.trim();
+    return raw === "" ? NaN : Number(raw);
+  }
+
+  function setError(id, show) {
+    const err = $("err-" + id);
+    if (err) err.style.display = show ? "block" : "none";
+    $(id).classList.toggle("invalid", show);
+  }
+
+  function validate() {
+    let ok = true;
+    const badMp = $("marketplace").value === "";
+    $("err-marketplace").style.display = badMp ? "block" : "none";
+    if (badMp) ok = false;
+
+    REQUIRED.forEach((id) => {
+      const v = readNum(id);
+      const bad = Number.isNaN(v) || !RULES[id](v);
+      setError(id, bad);
+      if (bad) ok = false;
+    });
+    OPTIONAL.forEach((id) => {
+      const raw = $(id).value.trim();
+      const v = raw === "" ? 0 : Number(raw);
+      const bad = Number.isNaN(v) || !RULES[id](v);
+      setError(id, bad);
+      if (bad) ok = false;
+    });
+
+    if (ok) {
+      const fee = (readNum("komisi") + readNum("layanan")) / 100;
+      const m = readNum("margin") / 100;
+      if (fee + m >= 1) {
+        $("alert-global").textContent = "Jumlah komisi, biaya layanan, dan target margin harus kurang dari 100%. Periksa kembali angkanya.";
+        $("alert-global").style.display = "block";
+        ok = false;
+      } else {
+        $("alert-global").style.display = "none";
+      }
+    }
+    return ok;
+  }
+
+  function calculate() {
+    const fee = (readNum("komisi") + readNum("layanan")) / 100;
+    const m = readNum("margin") / 100;
+    const d = readNum("diskon") / 100;
+    const fixed = $("tetap").value.trim() === "" ? 0 : Number($("tetap").value);
+    const hpp = readNum("hpp");
+    const kemasan = readNum("kemasan");
+    const ongkir = readNum("ongkir");
+
+    const minPay = (cost) => roundUp100(cost / (1 - fee - m));
+    const profitAt = (pay, extraCost) => pay * (1 - fee) - fixed - hpp - kemasan - extraCost;
+
+    const payA = minPay(hpp + kemasan + fixed);
+    const profitA = profitAt(payA, 0);
+    const listB = roundUp100(payA / (1 - d));
+    const payC = minPay(hpp + kemasan + fixed + ongkir);
+    const listC = roundUp100(payC / (1 - d));
+    const profitC = profitAt(payC, ongkir);
+
+    return {
+      fee: fee * 100, m: m * 100, d: d * 100, fixed, hpp, kemasan, ongkir,
+      A: { pay: payA, profit: profitA, margin: (profitA / payA) * 100 },
+      B: { list: listB, pay: payA, profit: profitA, margin: (profitA / payA) * 100 },
+      C: { list: listC, pay: payC, profit: profitC, margin: (profitC / payC) * 100 }
+    };
+  }
+
+  function readInputs() {
+    return {
+      produk: $("produk").value.trim(),
+      marketplace: $("marketplace").value,
+      tanggalTarif: $("tanggal-tarif").value.trim()
+    };
+  }
+
+  function render(r) {
+    const hasPromo = r.d > 0;
+    const rows = [
+      ["Normal, ongkir dibebankan ke pembeli", "-", r.A]
+    ];
+    if (hasPromo) {
+      rows.push(["Promo diskon " + r.d.toFixed(0) + "%, ongkir dibebankan ke pembeli", rupiah(r.B.list), r.B]);
+      rows.push(["Promo diskon " + r.d.toFixed(0) + "%, ongkir ditanggung penjual", rupiah(r.C.list), r.C]);
+    } else {
+      rows.push(["Normal, ongkir ditanggung penjual", "-", { pay: r.C.pay, profit: r.C.profit, margin: r.C.margin }]);
+    }
+
+    const body = $("tabel-hasil");
+    body.innerHTML = "";
+    rows.forEach(([label, coret, s]) => {
+      const tr = document.createElement("tr");
+      const cells = [
+        ["Skenario", label, false],
+        ["Harga coret", coret, true],
+        ["Harga bayar pembeli minimum", rupiah(s.pay), true],
+        ["Keuntungan per unit", rupiah(s.profit), true],
+        ["Margin", s.margin.toFixed(1) + "%", true]
+      ];
+      cells.forEach(([lab, val, isNum]) => {
+        const td = document.createElement("td");
+        td.setAttribute("data-label", lab);
+        if (isNum) td.className = "num";
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    $("ringkas").textContent = hasPromo
+      ? "Harga jual minimum tanpa promo: " + rupiah(r.A.pay) + ". Dengan diskon " + r.d.toFixed(0) + "%, harga coret yang ditampilkan minimal " + rupiah(r.B.list) + " agar harga bayar tetap " + rupiah(r.A.pay) + "."
+      : "Harga jual minimum: " + rupiah(r.A.pay) + ".";
+
+    $("section-hasil").classList.remove("hidden");
+    $("section-ai").classList.remove("hidden");
+    $("section-pdf").classList.remove("hidden");
+    $("hasil-ai").classList.add("hidden");
+    $("hasil-ai").textContent = "";
+    $("section-hasil").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function buildAiPrompt(r, inp) {
+    return `Jelaskan hasil perhitungan berikut dengan bahasa sederhana untuk seller UMKM Indonesia. Jangan mengubah angka. Jangan menjanjikan hasil. Ingatkan bahwa tarif marketplace perlu dicek ulang dan ini bukan saran keuangan. Jawab dalam 3 sampai 5 kalimat.
+
+Produk: ${inp.produk || "tidak disebutkan"}
+Marketplace: ${inp.marketplace}
+Komisi termasuk biaya layanan: ${r.fee.toFixed(2)}%
+Biaya tetap per transaksi: ${rupiah(r.fixed)}
+HPP: ${rupiah(r.hpp)}
+Biaya kemasan: ${rupiah(r.kemasan)}
+Ongkir per paket: ${rupiah(r.ongkir)}
+Target margin: ${r.m.toFixed(2)}%
+Diskon promo: ${r.d.toFixed(2)}%
+
+Hasil:
+- Normal: harga bayar minimum ${rupiah(r.A.pay)}, keuntungan ${rupiah(r.A.profit)} per unit, margin ${r.A.margin.toFixed(1)}%.
+- Promo, ongkir dibebankan ke pembeli: harga coret minimum ${rupiah(r.B.list)}, harga bayar ${rupiah(r.B.pay)}, margin ${r.B.margin.toFixed(1)}%.
+- Promo, ongkir ditanggung penjual: harga coret minimum ${rupiah(r.C.list)}, harga bayar ${rupiah(r.C.pay)}, keuntungan ${rupiah(r.C.profit)}, margin ${r.C.margin.toFixed(1)}%.`;
+  }
+
+  async function askAi(prompt) {
+    if (AI_ENDPOINT.includes("GANTI-PROJECT")) {
+      throw new Error("Alamat layanan AI belum diatur. Hubungi pembuat aplikasi.");
+    }
+    const headers = { "Content-Type": "application/json" };
+    if (APP_TOKEN) headers["x-app-token"] = APP_TOKEN;
+    const res = await fetch(AI_ENDPOINT, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Gagal mendapat penjelasan. Coba lagi.");
+    return data.text;
+  }
+
+  $("btn-hitung").addEventListener("click", () => {
+    if (!validate()) return;
+    lastResult = calculate();
+    lastInputs = readInputs();
+    render(lastResult);
+  });
+
+  $("btn-ai").addEventListener("click", async () => {
+    if (!lastResult) return;
+    const btn = $("btn-ai");
+    btn.disabled = true;
+    $("status-ai").textContent = "Sedang membuat penjelasan...";
+    try {
+      const text = await askAi(buildAiPrompt(lastResult, lastInputs));
+      $("hasil-ai").textContent = text;
+      $("hasil-ai").classList.remove("hidden");
+      $("status-ai").textContent = "";
+    } catch (e) {
+      $("status-ai").textContent = e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $("btn-pdf").addEventListener("click", () => {
+    if (!lastResult || !window.jspdf) {
+      $("status-pdf").textContent = "Hitung dulu, lalu unduh PDF.";
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const r = lastResult, inp = lastInputs;
+    const width = 180;
+    let y = 20;
+
+    const write = (text, size = 11, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      const lines = doc.splitTextToSize(text, width);
+      lines.forEach((line) => {
+        if (y > 280) { doc.addPage(); y = 20; }
+        doc.text(line, 15, y);
+        y += size * 0.5 + 2;
+      });
+    };
+
+    write("Kalkulator Harga dan Margin Marketplace", 16, true);
+    y += 2;
+    write("Produk: " + (inp.produk || "tidak disebutkan"));
+    write("Marketplace: " + inp.marketplace);
+    write("Tarif dicek pada: " + (inp.tanggalTarif || "tidak diisi"));
+    y += 3;
+    write("Data yang dimasukkan", 13, true);
+    write("Komisi termasuk biaya layanan: " + r.fee.toFixed(2) + "%");
+    write("Biaya tetap per transaksi: " + rupiah(r.fixed));
+    write("HPP: " + rupiah(r.hpp));
+    write("Biaya kemasan: " + rupiah(r.kemasan));
+    write("Ongkir per paket: " + rupiah(r.ongkir));
+    write("Target margin: " + r.m.toFixed(2) + "%");
+    write("Diskon promo: " + r.d.toFixed(2) + "%");
+    y += 3;
+    write("Hasil", 13, true);
+    write("Normal: harga bayar minimum " + rupiah(r.A.pay) + ", keuntungan " + rupiah(r.A.profit) + " per unit, margin " + r.A.margin.toFixed(1) + "%.");
+    if (r.d > 0) {
+      write("Promo, ongkir dibebankan ke pembeli: harga coret minimum " + rupiah(r.B.list) + ", harga bayar " + rupiah(r.B.pay) + ".");
+      write("Promo, ongkir ditanggung penjual: harga coret minimum " + rupiah(r.C.list) + ", harga bayar " + rupiah(r.C.pay) + ", keuntungan " + rupiah(r.C.profit) + ", margin " + r.C.margin.toFixed(1) + "%.");
+    }
+    const penjelasan = $("hasil-ai").classList.contains("hidden") ? "" : $("hasil-ai").textContent;
+    if (penjelasan) {
+      y += 3;
+      write("Penjelasan", 13, true);
+      write(penjelasan);
+    }
+    y += 3;
+    write("Hasil ini adalah estimasi, bukan saran keuangan. Tarif marketplace perlu dicek ulang di halaman resmi.", 9);
+
+    const nama = (inp.produk || "hasil").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    doc.save("kalkulator-margin-" + nama + ".pdf");
+    $("status-pdf").textContent = "PDF sudah diunduh.";
+    setTimeout(() => ($("status-pdf").textContent = ""), 2500);
+  });
+
+  $("btn-reset").addEventListener("click", () => {
+    ["produk", "marketplace", "komisi", "layanan", "tetap", "hpp", "kemasan", "ongkir", "margin", "diskon", "tanggal-tarif"]
+      .forEach((id) => { $(id).value = ""; });
+    [...REQUIRED, ...OPTIONAL, "marketplace"].forEach((id) => setError(id, false));
+    $("alert-global").style.display = "none";
+    ["section-hasil", "section-ai", "section-pdf"].forEach((id) => $(id).classList.add("hidden"));
+    $("tabel-hasil").innerHTML = "";
+    $("hasil-ai").textContent = "";
+    lastResult = null;
+    lastInputs = null;
+  });
+
+  ["komisi", "layanan", "tetap", "hpp", "kemasan", "ongkir", "margin", "diskon"].forEach((id) => {
+    $(id).addEventListener("input", () => {
+      if ($(id).value.trim() !== "") setError(id, false);
+    });
+  });
+  $("marketplace").addEventListener("change", () => {
+    if ($("marketplace").value !== "") $("err-marketplace").style.display = "none";
+  });
+</script>
+</body>
+</html>
