@@ -66,6 +66,7 @@ module.exports = async function handler(req, res) {
     );
 
     const data = await r.json().catch(() => ({}));
+    if (!r.ok) console.error("gemini-error", r.status, JSON.stringify(data).slice(0, 800));
     if (!r.ok) {
       const status = r.status === 429 ? 429 : r.status === 503 ? 503 : 502;
       const msg = status === 429
